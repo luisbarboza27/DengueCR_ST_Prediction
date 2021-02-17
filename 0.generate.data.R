@@ -68,6 +68,12 @@ cantones_datos <- cantones_datos %>%
   mutate(Year = as.numeric(Year)) %>%
   arrange(Canton,Year,Month)
 
+prop0s <- cantones_datos %>% group_by(Canton,Cases) %>%
+   summarise(Totales=n()) %>% ungroup %>%
+  group_by(Canton) %>%
+  mutate(GTotal=sum(Totales)) %>%
+  filter(Cases==0) %>% mutate(Por0=Totales/GTotal)
+
 
 # Carga del índice SST ----
 # Este índice debe ser actualizado constantemente a través de la página:
