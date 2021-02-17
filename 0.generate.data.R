@@ -7,7 +7,7 @@ library(xts)
 
 hojas <- excel_sheets(path = './Data/Casos_Dengue_1993-2020.xlsx')
 annos_sin_53 <- (1994:2020)[-c(4, 10, 15, 21)]
-annos_con_53 <- (1994:2020)[c(4, 10, 15, 21)]
+annos_con_53 <- (1994:2020)[c(4, 10, 15, 21, 27)]
 
 # Extraccion de casos observados en Costa Rica ----
 CR_datos <-
