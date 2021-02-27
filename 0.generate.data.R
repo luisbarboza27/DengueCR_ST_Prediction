@@ -287,7 +287,7 @@ cantones_datos <- cantones_datos %>%
 datos_totales <- cantones_datos %>% 
   left_join(constante_RR,by=c('Year','Month','CCanton')) %>%
   left_join(base_MODIS_cant,by=c('Year','Month','CCanton')) %>%
-  mutate(RR = Cases*constRR,OFF=log(1/constRR)) %>%
-  drop_na()
+  mutate(RR = Cases*constRR,OFF=log(1/constRR)) 
+  #%>% drop_na()    #observación: MODIS tiene NA, mientras que los casos_CR están completos.
 
 save(datos_totales,file = './Data/datos_totales.RData')
