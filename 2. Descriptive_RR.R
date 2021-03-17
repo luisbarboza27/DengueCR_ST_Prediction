@@ -41,9 +41,6 @@ hist(log(datos_totales$Cases+0.5))
 
 hist(datos_totales$RR)
 hist(log(datos_totales$RR+0.5))
-hist(datos_totales$OFF) #OFF=log(1/constRR)
-
-plot(datos_totales$RR,datos_totales$Cases)
 
 # 1. Scatterplots ----------------------------------------------------------------
 
@@ -51,7 +48,7 @@ datos_totales1 <- datos_totales %>%
   dplyr::mutate(logCases=log(Cases+1))%>% 
   dplyr::select(Canton,Cases,RR,Nino12SSTA,Nino3SSTA,Nino4SSTA,Nino34SSTA,TNA,
                 Poblacion, PoblacionCR,
-         EVI,NDVI,NDWI,LSD,LSN) 
+         EVI,NDVI,NDWI,LSD,LSN,OFF) 
 
 clog <- function(x) log(x + 0.5)
 cfac <- function(x, breaks = NULL) {
@@ -97,32 +94,6 @@ cfac <- function(x, breaks = NULL) {
   plot(clog(RR)~cfac(LSD)) # temperatura diurna (nivel de suelo)
   plot(clog(RR)~cfac(LSN)) # temperatura nocturna
 
-# 1.3. OFF -----------------------------------------------------------------
-  
-  plot(OFF~cfac(Nino12SSTA)) #índices de temperatura (superficie del mar)
-  plot(OFF~cfac(Nino3SSTA)) 
-  plot(OFF~cfac(Nino4SSTA)) 
-  plot(OFF~cfac(Nino34SSTA)) 
-  plot(OFF~cfac(TNA)) # el mismo índice pero caribe
-  plot(OFF~cfac(Poblacion))
-  plot(OFF~cfac(EVI)) # índice de vegetación
-  plot(OFF~cfac(NDVI)) # índice de vegetación normalizado
-  plot(OFF~cfac(NDWI)) # índice de vegetación 
-  plot(OFF~cfac(LSD)) # temperatura diurna (nivel de suelo)
-  plot(OFF~cfac(LSN)) # temperatura nocturna
-  
-  plot(OFF~Nino12SSTA) #índices de temperatura (superficie del mar)
-  plot(OFF~Nino3SSTA) 
-  plot(OFF~Nino4SSTA)
-  plot(OFF~Nino34SSTA)
-  plot(OFF~TNA) # el mismo índice pero caribe
-  plot(OFF~Poblacion)
-  plot(OFF~EVI) # índice de vegetación
-  plot(OFF~NDVI) # índice de vegetación normalizado
-  plot(OFF~NDWI) # índice de vegetación 
-  plot(OFF~LSD) # temperatura diurna (nivel de suelo)
-  plot(OFF~LSN) # temperatura nocturna
-  
   detach(datos_totales2) 
 
 # 2. GAMLSS ---------------------------------------------------------------
@@ -131,13 +102,20 @@ cfac <- function(x, breaks = NULL) {
   
   #datos_totales2$RRt<-datos_totales2$RR+0.0001
   datos_totales2$RRt<-datos_totales2$RR+0.5
+  datos_totales2$logRRt<-log(datos_totales2$RRt)
+  
+  #recommended for large dataset (pag93)
+  #convergence criterion
+  control1<-gamlss.control(c.crit=0.01)
+  
   
   # 2.1.1 Linear model ------------------------------------------------------
   
   m1a <- gamlss(RRt ~ 
                   Nino12SSTA+Nino3SSTA+Nino4SSTA+Nino34SSTA+
                   TNA+Poblacion+
-                  EVI+NDVI+NDWI+LSD+LSN, family=NO, data=datos_totales2, trace=FALSE)  
+                  EVI+NDVI+NDWI+LSD+LSN, family=NO, data=datos_totales2, 
+                gamlss.control=control1)  
   summary(m1a)  
   fitted(m1a, "sigma")[1] 
   plot(m1a)
@@ -149,22 +127,56 @@ cfac <- function(x, breaks = NULL) {
   summary(m1b)   
   plot(m1b)
   drop1(m1b)
+  term.plot(m1b, pages=1, ask=FALSE)
+  wp(m1b, ylim.all=.6)
   
+  #logRRt
+  m1c <- gamlss(logRRt ~ 
+                  Nino12SSTA+Nino3SSTA+Nino4SSTA+Nino34SSTA+
+                  TNA+Poblacion+
+                  EVI+NDVI+NDWI+LSD+LSN, family=NO, data=datos_totales2, 
+                gamlss.control=control1)  
+  summary(m1c)  
+  plot(m1c)
+  drop1(m1c)
+  
+  m1d <- gamlss(logRRt ~ 
+                  TNA+Poblacion+
+                  EVI+NDVI+NDWI+LSD+LSN, family=NO, data=datos_totales2, 
+                gamlss.control=control1)  
+  summary(m1d)  
+  plot(m1d)
+  drop1(m1d) 
+
+  m1e <- gamlss(logRRt ~ 
+                  pb(Nino4SSTA)+pb(Nino34SSTA)+
+                  pb(TNA)+pb(Poblacion)+
+                  pb(EVI)+pb(NDVI)+pb(NDWI)+pb(LSD)+pb(LSN), 
+                family=NO, data=datos_totales2, 
+                gamlss.control=control1)   
+
+  summary(m1e)  
+  plot(m1e)
+  term.plot(m1e, pages=1, ask=FALSE)
+  
+  drop1(m1d) 
   
   # 2.1.2. GLM --------------------------------------------------------------
 
   m2a <- gamlss(RRt ~ 
                   Nino12SSTA+Nino3SSTA+Nino4SSTA+Nino34SSTA+
                   TNA+Poblacion+
-                  EVI+NDVI+NDWI+LSD+LSN, family=GA, data=datos_totales2)
+                  EVI+NDVI+NDWI+LSD+LSN, family=GA, data=datos_totales2, 
+                gamlss.control=control1)
   summary(m2a)
   plot(m2a)
-  drop1(m2a)
+  #drop1(m2a)
   
   m2b <- gamlss(RRt ~ 
                   Nino12SSTA+
                   TNA+Poblacion+
-                  EVI+NDVI+NDWI+LSD+LSN, family=GA, data=datos_totales2)
+                  EVI+NDVI+NDWI+LSD+LSN, family=GA, data=datos_totales2, 
+                gamlss.control=control1)
   summary(m2b)
   plot(m2a)
   
@@ -176,7 +188,8 @@ cfac <- function(x, breaks = NULL) {
                   pb(Nino12SSTA)+pb(Nino3SSTA)+pb(Nino4SSTA)+pb(Nino34SSTA)+
                   pb(TNA)+pb(Poblacion)+
                   pb(EVI)+pb(NDVI)+pb(NDWI)+pb(LSD)+pb(LSN), 
-                family=GA , data=datos_totales2)
+                family=GA , data=datos_totales2, 
+                gamlss.control=control1)
 
   summary(m3a)
   plot(m3a)
@@ -188,7 +201,8 @@ cfac <- function(x, breaks = NULL) {
                   Nino12SSTA+Nino3SSTA+Nino4SSTA+Nino34SSTA+
                   pb(TNA)+pb(Poblacion)+
                   pb(EVI)+pb(NDVI)+pb(NDWI)+pb(LSD)+pb(LSN), 
-                family=GA , data=datos_totales2)
+                family=GA , data=datos_totales2, 
+                gamlss.control=control1)
 
   summary(m3b) 
   AIC(m1a,m2a,m3a,m3b)
@@ -196,7 +210,8 @@ cfac <- function(x, breaks = NULL) {
   m3c <- gamlss(RRt ~ 
                   pb(TNA)+pb(Poblacion)+
                   pb(EVI)+pb(NDVI)+pb(NDWI)+pb(LSD)+pb(LSN), 
-                family=GA , data=datos_totales2)
+                family=GA , data=datos_totales2, 
+                gamlss.control=control1)
   
   summary(m3c) 
   plot(m3c)
@@ -206,12 +221,13 @@ cfac <- function(x, breaks = NULL) {
   drop1(m3c)
   term.plot(m3c, pages=1, ask=FALSE)
   
-  wp(m3c, ylim.all=.6)
+  wp(m3c, ylim.all=5)
   
   m3d <- gamlss(RRt ~ 
                   pb(TNA)+pb(Poblacion)+
                   pb(EVI)+NDVI+pb(NDWI)+pb(LSD)+pb(LSN), 
-                family=GA , data=datos_totales2)
+                family=GA , data=datos_totales2, 
+                gamlss.control=control1)
   
   summary(m3d) 
   plot(m3d) 
@@ -230,7 +246,8 @@ cfac <- function(x, breaks = NULL) {
                 sigma.fo=~
                   pb(TNA)+pb(Poblacion)+
                   pb(EVI)+NDVI+pb(NDWI)+pb(LSD)+pb(LSN),
-                family=GA , data=datos_totales2)
+                family=GA , data=datos_totales2, 
+                gamlss.control=control1)
  
   summary(m4a)
   plot(m4a)
@@ -245,7 +262,8 @@ cfac <- function(x, breaks = NULL) {
                   EVI+NDVI+pb(NDWI), 
                 sigma.fo=~
                   pb(Poblacion)+NDWI,
-                family=GA , data=datos_totales2, trace=FALSE)
+                family=GA , data=datos_totales2, 
+                gamlss.control=control1)
   
   summary(m4b)
   term.plot(m4b, pages=1, ask=FALSE)
@@ -258,20 +276,29 @@ cfac <- function(x, breaks = NULL) {
   plot(m4b)
   
   wp(m4b, ylim.all=3)
-  title("(b)")
   
+  yhat<-predict(m4b)
+  fitted(m4b,"mu")
+  fitted(m4b,"sigma")
+  predict(m4b,type="response")
+  cbind(m4b$mu.fv,fitted(m4b,"mu"),predict(m4b,type="response"))
+  
+  plot(fitted(m4b,"mu")~datos_totales2$RRt)
+  abline(0,1)
   
   # ni
   m5a <- gamlss(RRt ~ 
                   pb(Poblacion)+pb(EVI)+NDVI+pb(NDWI), 
                 sigma.fo=~pb(Poblacion)+pb(NDWI),
                 nu.fo=~1,
-                family=GA , data=datos_totales2, trace=FALSE)
+                family=GA , data=datos_totales2, 
+                gamlss.control=control1)
   
   m5b <- gamlss(RRt ~ pb(Poblacion)+pb(EVI)+NDVI+pb(NDWI), 
                 sigma.fo=~pb(Poblacion)+pb(NDWI),
                 nu.fo=~pb(Poblacion)+pb(EVI)+NDVI+pb(NDWI),
-                family=GA , data=datos_totales2, trace=FALSE)
+                family=GA , data=datos_totales2, 
+                gamlss.control=control1)
   
   AIC(m4b, m5a, m5b)
   
@@ -285,44 +312,4 @@ cfac <- function(x, breaks = NULL) {
                 sigma.fo=~pb(Poblacion)+pb(NDWI),
                 nu.fo=~pb(Poblacion)+pb(EVI)+NDVI+pb(NDWI),
                 family=BCCGo , data=datos_totales2, trace=FALSE)  
-  
-  
-    
-# 2.2. Cases -----------------------------------------------
-  
-# 2.2.1 Poisson ------------------------------------------------------
-
-  mm0a <- gamlss(Cases ~ 1, family=PO, data=datos_totales2)
-  summary(mm0a)
-  
-  mm0b <- gamlss(Cases ~ 1, 
-                 sigma.fo= ~ 1,
-                 family=ZIP, data=datos_totales2)
-
-
-  mm1a <- gamlss(Cases ~ 
-                  pb(Nino12SSTA)+pb(Nino3SSTA)+pb(Nino4SSTA)+pb(Nino34SSTA)+
-                   pb(TNA)+pb(Poblacion)+
-                   pb(EVI)+pb(NDVI)+pb(NDWI)+pb(LSD)+pb(LSN),
-                 family=PO, data=datos_totales2)
-  summary(mm1a)
-  plot(mm1a)
-  drop1(mm2a)
-  
-  ZIP()
-  mm2a <- gamlss(Cases ~ 
-                   TNA+Poblacion+
-                   EVI+NDVI+NDWI+LSD+LSN,
-                 sigma.fo= ~
-                   TNA+Poblacion+
-                   EVI+NDVI+NDWI+LSD+LSN
-                 , family=ZIP, data=datos_totales2)
-  summary(mm2a)
-  plot(mm1a)
-  drop1(mm2a) 
-  
-  
-  
-  
-  
   
