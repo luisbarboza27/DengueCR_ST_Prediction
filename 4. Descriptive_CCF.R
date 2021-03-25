@@ -113,11 +113,6 @@ selected_canton %>% group_by(Canton) %>%
 
 # 3. defining lag variables -----------------------------------------------
 
-names(datos_totales1)
-datos_totales1 %>% select(Canton,Cases,Nino12SSTA)
-  
-  group_by(Canton) 
 
-datos_totales1 %>% filter(Canton = "Alajuela")
   
   
