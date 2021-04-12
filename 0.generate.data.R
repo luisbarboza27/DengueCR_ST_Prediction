@@ -290,4 +290,18 @@ datos_totales <- cantones_datos %>%
   mutate(RR = Cases*constRR,OFF=log(1/constRR)) %>%
   drop_na()
 
+
+# Carga y tratamiento de datos de CHIRPS ----
+load('datos/datos_precipitacion.RData')
+datos_precipitacion <- datos_precipitacion %>%
+  left_join(base_lat_lon_prelim,by = 'id') %>%
+  group_by(Canton,date) %>% summarise(Precip=sum(chirps)) %>%
+  rename(Fecha=date)
+
+casos_canton <- casos_canton %>% mutate(Canton = as.character(Canton))
+
+casos_prec_canton <- datos_precipitacion %>% 
+  left_join(casos_canton,by = c('Canton','Fecha'))
+
+
 save(datos_totales,file = './Data/datos_totales.RData')
