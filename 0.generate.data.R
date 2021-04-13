@@ -292,16 +292,23 @@ datos_totales <- cantones_datos %>%
 
 
 # Carga y tratamiento de datos de CHIRPS ----
-load('datos/datos_precipitacion.RData')
+load('Data/datos_precipitacion.RData')
+
+localizaciones_MODIS <- localizaciones_MODIS %>%
+  mutate(id=1:n())
+
 datos_precipitacion <- datos_precipitacion %>%
-  left_join(base_lat_lon_prelim,by = 'id') %>%
-  group_by(Canton,date) %>% summarise(Precip=sum(chirps)) %>%
-  rename(Fecha=date)
+  left_join(localizaciones_MODIS,by = 'id') %>%
+  group_by(CCanton,date) %>% summarise(Precip=sum(chirps)) %>%
+  rename(Fecha=date) %>% ungroup() %>%
+  mutate(Year=year(Fecha),Month=month(Fecha)) %>%
+  group_by(Year,Month,CCanton) %>%
+  summarise(Precip_t=sum(Precip)) %>%
+  ungroup()
 
-casos_canton <- casos_canton %>% mutate(Canton = as.character(Canton))
 
-casos_prec_canton <- datos_precipitacion %>% 
-  left_join(casos_canton,by = c('Canton','Fecha'))
+datos_totales <- datos_totales %>% 
+  left_join(datos_precipitacion,by = c('CCanton','Year','Month'))
 
 
 save(datos_totales,file = './Data/datos_totales.RData')
