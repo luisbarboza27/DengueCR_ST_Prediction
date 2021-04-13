@@ -16,6 +16,6 @@ base_lat_lon <- localizaciones_MODIS %>% select(DTA,Latitud,Longitud) %>%
   st_as_sf(coords = c('Longitud','Latitud'),crs=4326) %>%
   mutate(DTA_st = as.character(DTA))
 
-datos_precipitacion <- get_chirps(base_lat_lon[1:2,],dates = fechas_1)
+datos_precipitacion <- get_chirps(base_lat_lon, dates = fechas_1)
 
-save(datos_precipitacion,file = 'datos/datos_precipitacion.RData')
+save(datos_precipitacion,file = 'Data/datos_precipitacion.RData')
