@@ -259,7 +259,8 @@ baseMODIS_wide <- baseMODIS %>%
   pivot_wider(names_from = variable,values_from = ValorMODIS) %>%
   mutate(NDWI=(NIR-MIR)/(NIR+MIR)) %>%
   arrange(DTA,Year,Month) %>%
-  mutate(NDVI = na.approx(NDVI,rule=2),NDWI = na.approx(NDWI,rule=2)) 
+  mutate(NDVI = na.approx(NDVI,rule=2),NDWI = na.approx(NDWI,rule=2),
+         EVI = na.approx(EVI,rule=2)) 
   
 
 # Conversión de variables MODIS a frecuencia cantonal, usando
@@ -282,7 +283,8 @@ base_MODIS_cant <- baseMODIS_wide %>%
 # Unión de casos, MODIS, índices y constante de Riesgo Relativo ----
 cantones <- cantones %>% select(Canton=Cantones,CCanton)
 cantones_datos <- cantones_datos %>%
-  left_join(cantones,by='Canton')
+  left_join(cantones,by='Canton') %>%
+  filter(Year>2000 | Month >1)
 
 datos_totales <- cantones_datos %>% 
   left_join(constante_RR,by=c('Year','Month','CCanton')) %>%
@@ -305,7 +307,6 @@ datos_precipitacion <- datos_precipitacion %>%
   group_by(Year,Month,CCanton) %>%
   summarise(Precip_t=sum(Precip)) %>%
   ungroup()
-
 
 datos_totales <- datos_totales %>% 
   left_join(datos_precipitacion,by = c('CCanton','Year','Month'))
