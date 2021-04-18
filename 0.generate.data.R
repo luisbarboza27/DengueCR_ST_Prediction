@@ -275,8 +275,8 @@ base_MODIS_cant <- baseMODIS_wide %>%
   right_join(poblacion_distrital,by=c('Year','Month','DTA')) %>%
   mutate(EVIrel=EVI*Poblacionrel,NDVIrel=NDVI*Poblacionrel,NDWIrel=NDWI*Poblacionrel,LSDrel=LSD*Poblacionrel,LSNrel=LSN*Poblacionrel) %>%
   group_by(Year,Month,CCanton) %>% summarise(EVI=sum(EVIrel),NDVI=sum(NDVIrel),NDWI=sum(NDWIrel),LSD=sum(LSDrel),LSN=sum(LSNrel))%>%
-  arrange(CCanton,Year,Month) %>% ungroup() #%>%
-  #drop_na()
+  arrange(CCanton,Year,Month) %>% ungroup() %>%
+  drop_na()
 
 
 # Unión de casos, MODIS, índices y constante de Riesgo Relativo ----
@@ -287,8 +287,8 @@ cantones_datos <- cantones_datos %>%
 datos_totales <- cantones_datos %>% 
   left_join(constante_RR,by=c('Year','Month','CCanton')) %>%
   left_join(base_MODIS_cant,by=c('Year','Month','CCanton')) %>%
-  mutate(RR = Cases*constRR,OFF=log(1/constRR)) %>%
-  drop_na()
+  mutate(RR = Cases*constRR,OFF=log(1/constRR)) #%>%
+  #drop_na()
 
 
 # Carga y tratamiento de datos de CHIRPS ----

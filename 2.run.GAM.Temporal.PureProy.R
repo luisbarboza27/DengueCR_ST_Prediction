@@ -6,8 +6,6 @@ library(lubridate)
 # climáticas de MODIS
 load('./Data/datos_totales.RData')
 
-datos_totales<-datos_totales %>%
-  drop_na()
 
 ##ESCOGENCIA DE REZAGO MÁXIMO ####
 maxlag <- 24
