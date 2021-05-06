@@ -74,3 +74,38 @@ for(i in 1:length(cantones$CCanton)){
   bases_test[[i]] <- base_test
 }
 
+lapply(bases_ent,dim) 
+lapply(bases_test,dim) 
+
+#save(bases_ent,bases_test,file = './Data/bases_analisis.RData')
+
+# Analysis ----------------------------------------------------------------
+
+bases_ent_completo <- bases_ent %>% reduce(rbind) %>%
+  mutate(Date=make_date(Year,Month,1))
+
+glimpse(bases_ent_completo)
+
+# Alajuela ----------------------------------------------------------------
+
+Alajuela <- bases_ent_completo %>% filter(Canton=="Alajuela")
+
+clog <- function(x) log(x + 0.5)
+cfac <- function(x, breaks = NULL) {
+  if(is.null(breaks)) breaks <- unique(quantile(x, 0:10/10))
+  x <- cut(x, breaks, include.lowest = TRUE, right = FALSE)
+  levels(x) <- paste(breaks[-length(breaks)], ifelse(diff(breaks) > 1,
+                                                     c(paste("-", breaks[-c(1, length(breaks))] - 1, sep = ""), "+"), ""),
+                     sep = "")
+  return(x)
+}
+
+#datos_totales2$RRt<-datos_totales2$RR+0.0001
+
+names(bases_ent_completo)
+
+"Nino12SSTAl1", "Nino3SSTAl1","Nino34SSTAl1","Nino4SSTAl1",  "EVIl1",
+"NDVIl1", "NDWIl1", "LSDl1", "LSNl1" ,"TNAl1",
+"Precipl1
+
+
