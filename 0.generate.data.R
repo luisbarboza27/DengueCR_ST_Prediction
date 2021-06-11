@@ -5,16 +5,17 @@ library(lubridate)
 library(tidyr)
 library(xts)
 
-hojas <- excel_sheets(path = './Data/Casos_Dengue_1993-2020.xlsx')
-annos_sin_53 <- (1994:2020)[-c(4, 10, 15, 21)]
-annos_con_53 <- (1994:2020)[c(4, 10, 15, 21, 27)]
+
+hojas <- excel_sheets(path = './Data/Casos_Dengue_1993-2021.xlsx')
+annos_sin_53 <- (1994:2021)[-c(4, 10, 15, 21)]
+annos_con_53 <- (1994:2021)[c(4, 10, 15, 21, 27)]
 
 # Extraccion de casos observados en Costa Rica ----
 CR_datos <-
-  read_excel('./Data/Casos_Dengue_1993-2020.xlsx',
-             range = "B4:AD57",
+  read_excel('./Data/Casos_Dengue_1993-2021.xlsx',
+             range = "B4:AE57",
              col_names = T) %>%
-  gather(key = 'Year', value = 'Cases', `1993`:`2020`) %>%
+  gather(key = 'Year', value = 'Cases', `1993`:`2021`) %>%
   filter(Year != 1993) %>%
   filter(Year %in% annos_con_53 | SEMANA != 53)%>%
   na.omit()
@@ -31,12 +32,12 @@ for(i in 1:length(cantones$Cantones)) {
   show(i)
   canton <-
     read_excel(
-      './Data/Casos_Dengue_1993-2020.xlsx',
-      range = "B4:AD57",
+      './Data/Casos_Dengue_1993-2021.xlsx',
+      range = "B4:AE57",
       sheet = cantones$Cantones[i],
       col_names = T
     ) %>%
-    gather(key = 'Year', value = 'Cases', `1993`:`2020`) %>%
+    gather(key = 'Year', value = 'Cases', `1993`:`2021`) %>%
     filter(Year != 1993) %>%
     filter(Year %in% annos_con_53 | SEMANA != 53) %>%
     mutate(Canton = cantones$Cantones[i])%>%
@@ -78,7 +79,7 @@ prop0s <- cantones_datos %>% group_by(Canton,Cases) %>%
 # Carga del índice SST ----
 # Este índice debe ser actualizado constantemente a través de la página:
 datosSST <-
-  read_table('https://www.cpc.ncep.noaa.gov/data/indices/ersst5.nino.mth.81-10.ascii')
+  read_table('https://www.cpc.ncep.noaa.gov/data/indices/ersst5.nino.mth.91-20.ascii')
 
 datosSST <- datosSST %>% select(
   Year = YR,
@@ -88,7 +89,7 @@ datosSST <- datosSST %>% select(
   Nino4SSTA = ANOM_2,
   Nino34SSTA = ANOM_3
 ) %>%
-  filter(Year >= 2000, Year <= 2020)
+  filter(Year >= 2000, Year <= 2021)
 
 
 # Carga del índice TNA ----
@@ -98,13 +99,13 @@ datosTNA <-
     'https://www.esrl.noaa.gov/psd/data/correlation/tna.data'
     ,
     skip = 1,
-    n_max = 72
+    n_max = 73
   )
 colnames(datosTNA) <- c('Year', seq(1, 12))
 
 datosTNA <-
   datosTNA %>% pivot_longer(-Year, names_to = 'Month', values_to = 'TNA') %>%
-  filter(Year >= 2000, Year <= 2020) %>% mutate(Month = as.numeric(Month))%>%
+  filter(Year >= 2000, Year <= 2021) %>% mutate(Month = as.numeric(Month))%>%
   filter(TNA>=-90)
 
 
@@ -175,7 +176,7 @@ poblacion_cantonal <- poblacion_distrital %>%
 
 # Cálculo de la población cantonal a nivel mensual (interpolación lineal) 
 fechas_base <- CR_datos %>% select(Year,Month) %>%
-  rbind(c(2021,1)) %>% 
+  bind_rows(data.frame(Year=c(rep(2021,7),2022),Month=c(6:12,1))) %>% 
   expand_grid(CCanton=cantones$CCanton) 
 
 poblacion_cantonal <- poblacion_cantonal %>%
@@ -190,6 +191,7 @@ fechas_base_CR <- fechas_base %>% filter(CCanton==101) %>%
 poblacion_CR <- read_xlsx('Data/Poblacion_Nacional.xlsx') %>%
   mutate(Month=1,CCanton=1) %>% 
   right_join(fechas_base_CR) %>%
+  arrange(Year,Month) %>%
   mutate(Poblacionap = na.approx(PoblacionCR,rule=2))%>%
   select(Year,Month,PoblacionCR=Poblacionap)
 
@@ -201,7 +203,7 @@ constante_RR <- poblacion_cantonal %>%
 
 # Cálculo de la población distrital a nivel mensual (interpolación lineal) 
 fechas_base_dist <- CR_datos %>% select(Year,Month) %>%
-  rbind(c(2021,1)) %>% 
+  bind_rows(data.frame(Year=c(rep(2021,7),2022),Month=c(6:12,1))) %>% 
   expand_grid(DTA=unique(poblacion_distrital$DTA))  
 
 poblacion_distrital <- poblacion_distrital %>%
