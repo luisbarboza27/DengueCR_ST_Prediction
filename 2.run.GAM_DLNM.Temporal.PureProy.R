@@ -4,7 +4,7 @@ library(lubridate)
 library(gamlss)
 library(zoo)
 library(boot)
-
+library(dlnm)
 
 # Carga de datos con riesgos relativos, índices climáticos y variables
 # climáticas de MODIS
@@ -21,7 +21,7 @@ cantones <- datos_totales %>%
 ccf_dataset <- datos_totales %>%
   mutate(Date=make_date(Year,Month,1)) %>%
   dplyr::select(Date,Canton,RR,Nino12SSTA,Nino3SSTA,Nino34SSTA,Nino4SSTA,EVI,NDVI,
-       NDWI,LSD,LSN,TNA,Precip_t) %>%
+                NDWI,LSD,LSN,TNA,Precip_t) %>%
   group_by(Canton) %>%
   tk_acf_diagnostics(Date,RR,
                      .ccf_vars=c(Nino12SSTA,Nino3SSTA,Nino34SSTA,Nino4SSTA,EVI,NDVI,
@@ -68,7 +68,26 @@ for(i in 1:length(cantones$CCanton)){
     bind_rows(data.frame(Year=2021,Month=c(5,6,7),CCanton=cantones$CCanton[i]))
   
   basecanton <- basecanton %>% mutate(Month=as.factor(Month))
-
+  
+  
+  ##########
+  basecanton <- basecanton %>% drop_na()
+  #basis.P <- crossbasis(basecanton$Precip_t,lag = 12,argvar=list(fun="lin"),
+  #                      arglag=list(fun="poly",degree=2))
+  basis.P <- crossbasis(basecanton$Precip_t,
+                        argvar = list(fun='lin'),
+                        arglag = list(fun='lin'),
+                        lag=18)
+  basecanton <- basecanton %>% bind_cols(data.frame(basis.P)) %>%
+    drop_na()
+  modelo_gamma <- gamlss(RR~v1.l1+v1.l2,
+                         sigma.formula = ~1,
+                         nu.formula = ~1,
+                         data = basecanton,
+                         family = ZAGA(),
+                         control = gamlss.control(trace = F))
+  
+  ##########
   basecanton <- basecanton %>%
     mutate(RRl1 = lag(RR),Nino12SSTAl1=lag(Nino12SSTA,lags_ccf[i,1]),Nino3SSTAl1=lag(Nino3SSTA,lags_ccf[i,2]),Nino34SSTAl1=lag(Nino34SSTA,lags_ccf[i,3]),Nino4SSTAl1=lag(Nino4SSTA,lags_ccf[i,4]),
            EVIl1=lag(EVI,lags_ccf[i,5]),NDVIl1=lag(NDVI,lags_ccf[i,6]),
@@ -80,21 +99,21 @@ for(i in 1:length(cantones$CCanton)){
   
   base_ent <- basecanton %>% slice(1:(n()-15)) %>%
     drop_na(RRl1,Nino12SSTAl1,Nino3SSTAl1,Precipl1,TNAl1)
-#    drop_na(Nino12SSTAl1,Nino3SSTAl1,Nino34SSTAl1,Nino4SSTAl1,EVIl1,NDVIl1,
-#            NDWIl1,LSDl1,LSNl1,TNAl1,Precipl1)
+  #    drop_na(Nino12SSTAl1,Nino3SSTAl1,Nino34SSTAl1,Nino4SSTAl1,EVIl1,NDVIl1,
+  #            NDWIl1,LSDl1,LSNl1,TNAl1,Precipl1)
   
   base_test_1 <- basecanton %>%  slice((n()-14):(n()-3)) 
-#    drop_na(Nino12SSTAl1,Nino3SSTAl1,Nino34SSTAl1,Nino4SSTAl1,EVIl1,NDVIl1,
-#            NDWIl1,LSDl1,LSNl1,TNAl1,Precipl1) 
+  #    drop_na(Nino12SSTAl1,Nino3SSTAl1,Nino34SSTAl1,Nino4SSTAl1,EVIl1,NDVIl1,
+  #            NDWIl1,LSDl1,LSNl1,TNAl1,Precipl1) 
   
   base_test_2 <- basecanton %>%  slice((n()-2):n()) 
   modelo_gamma <- gamlss(RR~RRl1+Nino3SSTAl1+TNAl1+Precipl1+Month,
                          sigma.formula = ~1,
                          nu.formula = ~1,
-                          data = base_ent,
-                          family = ZAGA(),
+                         data = base_ent,
+                         family = ZAGA(),
                          control = gamlss.control(trace = F))
-
+  
   
   base_ent <- base_ent %>% 
     mutate(res = resid(modelo_gamma),
@@ -117,18 +136,18 @@ for(i in 1:length(cantones$CCanton)){
   predicciones_in[[i]] <- predict(modGAM[[i]],type = 'response',se.fit = T)
   predicciones_out_1[[i]] <- list()
   
-   for(j in 1:12){
-     base_proy <- base_test_1[j,]
-     if(j>1){
-       base_proy$RRl1 <- RRtemp
-     }
-     
-     ppred <- predict(modGAM[[i]],newdata = base_proy,type = 'response')
-     ppred_sigma <- predict(modGAM[[i]],newdata = base_proy,
-                            type = 'response',what = 'sigma')
-     RRtemp <- ppred
-     predicciones_out_1[[i]][[j]] <- ppred
-   }
+  for(j in 1:12){
+    base_proy <- base_test_1[j,]
+    if(j>1){
+      base_proy$RRl1 <- RRtemp
+    }
+    
+    ppred <- predict(modGAM[[i]],newdata = base_proy,type = 'response')
+    ppred_sigma <- predict(modGAM[[i]],newdata = base_proy,
+                           type = 'response',what = 'sigma')
+    RRtemp <- ppred
+    predicciones_out_1[[i]][[j]] <- ppred
+  }
   predicciones_out_1[[i]] <- unlist(predicciones_out_1[[i]])
   
   ##Semi-parametric bootstrap  (pag 149)
@@ -148,7 +167,7 @@ for(i in 1:length(cantones$CCanton)){
       RRtemp <- ppred
       predicciones_out_b[j] <- ppred
     }
-  predicciones_out_b
+    predicciones_out_b
   }
   
   ##Nonparametric bootstrap  (pag 149)
@@ -173,7 +192,7 @@ for(i in 1:length(cantones$CCanton)){
   #incert.pred <- boot(base_ent,pred.function,R = 100)
   incert.pred <- boot(base_ent,pred.function.NP,R = 100)
   quantiles_out_1[[i]] <- apply(incert.pred$t,2,quantile,
-                                   probs=c(0.025,0.975))
+                                probs=c(0.025,0.975))
 }
 
 nombres_cantones <- datos_totales %>%
