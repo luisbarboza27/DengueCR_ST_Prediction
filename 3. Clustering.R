@@ -19,6 +19,11 @@ str(datos_totales)
 dim(datos_totales)
 table(datos_totales$Year,datos_totales$Month)
 
+#Filter the data from 2000-02 to 2021-05
+datos_totales <- datos_totales %>% 
+                      dplyr::filter(Year!=2021 | Month %in% c(1,2,3)) 
+                        
+  
 # creating time index
 datos_totales$time <- paste0(datos_totales$Year,"-",datos_totales$Month,"-",15)
 datos_totales$time <- as.Date(datos_totales$time, "%Y-%m-%d")
@@ -28,12 +33,11 @@ datos_totales$time <- as.Date(datos_totales$time, "%Y-%m-%d")
 dim(datos_totales)
 
 datos_totales2 <- datos_totales %>% 
-  dplyr::mutate(logCases=log(Cases+0.5),logRR=log(RR+0.5))%>% 
-  dplyr::select(Canton,time,Cases,logCases,RR,logRR,Nino12SSTA,Nino3SSTA,Nino4SSTA,Nino34SSTA,TNA,
+  dplyr::mutate(logCases=log(Cases+0.5),logRR=log(RR+0.5),logPrecip=log(Precip_t+0.5))%>% 
+  dplyr::select(Canton,time,Cases,logCases,RR,logRR,Precip_t,logPrecip,Nino12SSTA,Nino3SSTA,Nino4SSTA,Nino34SSTA,TNA,
                 Poblacion, PoblacionCR,
                 EVI,NDVI,NDWI,LSD,LSN,OFF) 
-
-
+  
 # 1. Converting data.frame to wide format ---------------------------------
 
 #logCases
@@ -88,6 +92,33 @@ logRR_wide$cluster6_logRR <- as.factor(cluster6_logRR)
 
 results_logRR <- logRR_wide %>% dplyr::select(Canton,cluster3_logRR,cluster4_logRR, cluster5_logRR, cluster6_logRR)
 
+#logPrecip
+
+logPrecip_wide <- dcast(datos_totales2, Canton ~ time, value.var="logPrecip")
+logPrecip_wide1 <- logRR_wide %>% dplyr::select(-Canton)
+dim(logPrecip_wide1)
+
+distMatrix_logPrecip <- dist(logRR_wide1, method="DTW")
+
+logPrecip_hc <- hclust(distMatrix_logPrecip, method="average")
+
+plot(logPrecip_hc,  main="")
+rect.hclust(logPrecip_hc, k = 3, border = 2)
+rect.hclust(logPrecip_hc, k = 4, border = 3)
+rect.hclust(logPrecip_hc, k = 5, border = 4)
+rect.hclust(logPrecip_hc, k = 6, border = 5)
+
+cluster3_logPrecip <- cutree(logPrecip_hc, k = 3)
+cluster4_logPrecip <- cutree(logPrecip_hc, k = 4)
+cluster5_logPrecip <- cutree(logPrecip_hc, k = 5)
+cluster6_logPrecip <- cutree(logPrecip_hc, k = 6)
+logRR_wide$cluster3_logPrecip <- as.factor(cluster3_logPrecip)
+logRR_wide$cluster4_logPrecip <- as.factor(cluster4_logPrecip)
+logRR_wide$cluster5_logPrecip <- as.factor(cluster5_logPrecip)
+logRR_wide$cluster6_logPrecip <- as.factor(cluster6_logPrecip)
+
+results_logPrecip <- logRR_wide %>% dplyr::select(Canton,cluster3_logPrecip,cluster4_logPrecip, cluster5_logPrecip, cluster6_logPrecip)
+
 
 #######################
 
@@ -98,9 +129,16 @@ table(results_logCases$cluster5_logCases,results_logRR$cluster5_logRR)
 table(results_logCases$cluster6_logCases,results_logRR$cluster6_logRR)
 
 
+table(results_logPrecip$cluster3_logPrecip,results_logRR$cluster3_logRR)
+table(results_logPrecip$cluster4_logPrecip,results_logRR$cluster4_logRR)
+table(results_logPrecip$cluster5_logPrecip,results_logRR$cluster5_logRR)
+table(results_logPrecip$cluster6_logPrecip,results_logRR$cluster6_logRR)
+
+
 datos_totales3 <- datos_totales2 %>% 
                           left_join(results_logCases, by= "Canton") %>% 
-                          left_join(results_logRR, by= "Canton")
+                          left_join(results_logRR, by= "Canton") %>%
+                          left_join(results_logPrecip, by= "Canton")
 
 
 ggplot(datos_totales3, aes(x = time, y = logCases)) + 
@@ -119,6 +157,13 @@ ggplot(datos_totales3, aes(x = time, y = logRR)) +
   geom_line(aes(color = cluster4_logRR), size = 1) +
   theme_minimal()
 
+ggplot(datos_totales3, aes(x = time, y = logPrecip)) + 
+  geom_line(aes(color = cluster3_logPrecip), size = 1) +
+  theme_minimal()
+
+ggplot(datos_totales3, aes(x = time, y = logPrecip)) + 
+  geom_line(aes(color = cluster4_logPrecip), size = 1) +
+  theme_minimal()
 
 #Group_by
 
@@ -133,4 +178,15 @@ grupos$data[[3]]
 grupos$data[[4]]
 grupos$data[[5]]
 
-save(results_logRR ,file="./Data/clustering.Rdata")
+grupos <- results_logPrecip %>% dplyr::select(Canton,cluster3_logPrecip,cluster4_logPrecip, 
+                                          cluster5_logPrecip, cluster6_logPrecip) %>% 
+  group_by(cluster5_logPrecip) %>% 
+  nest()
+
+grupos$data[[1]]
+grupos$data[[2]]
+grupos$data[[3]]
+grupos$data[[4]]
+grupos$data[[5]]
+
+save(results_logRR,results_logPrecip ,file="./Data/clustering.Rdata")
