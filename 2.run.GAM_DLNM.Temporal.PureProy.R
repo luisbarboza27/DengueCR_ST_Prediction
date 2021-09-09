@@ -66,10 +66,10 @@ for(i in 1:length(cantones$CCanton)){
   colnames(basis.TNA) <- paste0('T',1:dim(basis.TNA)[2])
   
   basis.RR <- crossbasis(basecanton$RRl1,
-                          argvar = list(fun='lin'),
+                          argvar = list(fun='bs'),
                           arglag = list(fun='lin'),
                           lag=11)
-  colnames(basis.RR) <- paste0('R',1:dim(basis.TNA)[2])
+  colnames(basis.RR) <- paste0('R',1:dim(basis.RR)[2])
   
   
   basecanton <- basecanton %>% 
@@ -80,18 +80,28 @@ for(i in 1:length(cantones$CCanton)){
     drop_na()
   
 
-  base_ent <- basecanton %>% slice(1:(n()-15)) 
+  base_ent <- basecanton %>% filter(Year<=2018) 
   
-  modelo_gamma <- gamlss(RR~R1+R2+
+  # modelo_gamma <- gamlss(RR~R1+R2+
+  #                          P1+P2+
+  #                          N1+N2+
+  #                          T1+T2,
+  #                        sigma.formula = ~1,
+  #                        nu.formula = ~1,
+  #                        data = base_ent,
+  #                        family = ZAGA(),
+  #                        control = gamlss.control(trace = F))
+  
+  modelo_gamma <- gamlss(RR~R1+R2+R3+R4+R5+R6+
                            P1+P2+
                            N1+N2+
-                           T1+T2,
+                           T1+T2+
+                           Month,
                          sigma.formula = ~1,
                          nu.formula = ~1,
                          data = base_ent,
                          family = ZAGA(),
                          control = gamlss.control(trace = F))
-  
   ##########
   # basecanton <- basecanton %>%
   #   mutate(RRl1 = lag(RR),Nino12SSTAl1=lag(Nino12SSTA,lags_ccf[i,1]),Nino3SSTAl1=lag(Nino3SSTA,lags_ccf[i,2]),Nino34SSTAl1=lag(Nino34SSTA,lags_ccf[i,3]),Nino4SSTAl1=lag(Nino4SSTA,lags_ccf[i,4]),
@@ -106,7 +116,7 @@ for(i in 1:length(cantones$CCanton)){
   #    drop_na(Nino12SSTAl1,Nino3SSTAl1,Nino34SSTAl1,Nino4SSTAl1,EVIl1,NDVIl1,
   #            NDWIl1,LSDl1,LSNl1,TNAl1,Precipl1)
   
-  base_test_1 <- basecanton %>%  slice((n()-14):(n()-3)) 
+  base_test_1 <- basecanton %>%  filter(Year==2019) 
   #    drop_na(Nino12SSTAl1,Nino3SSTAl1,Nino34SSTAl1,Nino4SSTAl1,EVIl1,NDVIl1,
   #            NDWIl1,LSDl1,LSNl1,TNAl1,Precipl1) 
   
@@ -204,7 +214,7 @@ nombres_cantones <- datos_totales %>%
   distinct()
 
 indices_cantones <- c(5,6,7,14,19,23,25,26,27,31)
-
+#indices_cantones <- 1:32
 
 indice <- indices_cantones
 base_grafico_lista <- function(indice){
@@ -252,5 +262,18 @@ grafico_out <- ggplot(data = base_grafico_out,mapping = aes(x = fechas,y = fit))
   facet_wrap(facets = vars(Canton),ncol = 2,scales = 'free')+
   xlab('Dates')+ylab('Relative Risk')
 
+
+metricas <- function(tabla){
+  MSE <- sum((tabla$fit-tabla$RR)^2)
+  IS_95 <- mean((tabla$up-tabla$low)+
+    (2/0.05)*(tabla$low-tabla$RR)*(tabla$RR<tabla$low)+
+    (2/0.05)*(tabla$RR-tabla$up)*(tabla$RR>tabla$up))
+  return(data.frame(MSE,IS_95))
+}
+
+base_grafico_out_g <- base_grafico_out %>% group_by(Canton)
+
+metricas_tot <- base_grafico_out_g %>% group_modify(~metricas(.x))
+write_csv(metricas_tot,file = 'metricas_2_Mes.csv')
 #ggsave(filename = 'training.png',plot = grafico_in,scale = 2)
 #ggsave(filename = 'testing.png',plot = grafico_out,scale = 2)
