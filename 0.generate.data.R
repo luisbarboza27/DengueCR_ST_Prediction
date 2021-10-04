@@ -233,8 +233,8 @@ baseNDVI <- baseNDVI %>% mutate(variable='NDVI')
 baseEVI <- baseEVI %>% mutate(variable='EVI')
 baseMIR <- baseMIR %>% mutate(variable='MIR')
 baseNIR <- baseNIR %>% mutate(variable='NIR')
-baseLSTDia <- baseLSTDia %>% mutate(variable='LSD')
-baseLSTNoche <- baseLSTNoche %>% mutate(variable='LSN')
+baseLSTDia <- baseLST_Dia %>% mutate(variable='LSD')
+baseLSTNoche <- baseLST_Noche %>% mutate(variable='LSN')
 
 baseMODIS <-
   bind_rows(baseNDVI, baseEVI, baseMIR, baseNIR, baseLSTDia, baseLSTNoche)
