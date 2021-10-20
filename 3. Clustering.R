@@ -12,6 +12,7 @@ library(tidyverse)
 library(reshape2)
 library(dtw)
 library(gridExtra)
+library(dtwclust)
 
 # 0. reading data ------------------------------------------------------------
 
@@ -194,52 +195,68 @@ series <- datos_totales2 %>% dplyr::select(Canton,logPrecip,
 
 series.mv <- series$data
 names(series.mv) <- series$Canton
+labels <- as.factor(series$Canton)
 length(series.mv)
 class(series.mv)
 
 #DTW_basic
 
-mvc1 <- tsclust(series.mv, type = "hierarchical",
+mvc5 <- tsclust(series.mv, type = "hierarchical",
                  distance = "dtw2", k = 5L, trace = TRUE,
                  control = hierarchical_control(method = "all"))
-class(mvc1)
-length(mvc1)
+class(mvc5)
+length(mvc5)
 
 # Cluster validity indices
-CIV1<-sapply(mvc1, cvi, b = labels)
-unlist(apply(CIV1,1,which.min))
-mvc1a<-mvc1[[1]]
+CIV5<-sapply(mvc5, cvi, b = labels)
+unlist(apply(CIV5,1,which.min))
+mvc5a<-mvc5[[1]]
 
-names(mvc1a)
-mvc1a@distance
-plot(mvc1a)
-rect.hclust(mvc1a, k = 5, border = 2) 
-mvc1a@cluster
-mvc1a@clusinfo
+names(mvc5a)
+mvc5a@distance
+plot(mvc5a)
+rect.hclust(mvc5a, k = 5, border = 2) 
+mvc5a@cluster
+mvc5a@clusinfo
 
-results_mvc1a<-mvc1a@cluster
+results_mvc5a<-mvc5a@cluster
 
 
-mvc2 <- tsclust(series.mv, type = "hierarchical",
+mvc6 <- tsclust(series.mv, type = "hierarchical",
                 distance = "dtw2", k = 6L, trace = TRUE,
                 control = hierarchical_control(method = "all",
-                                               distmat = mvc1[[1L]]@distmat))
-CIV2<-sapply(mvc2, cvi, b = labels)
-unlist(apply(CIV2,1,which.min))
-mvc2a<-mvc2[[1]]
+                                               distmat = mvc5[[1L]]@distmat))
+CIV6<-sapply(mvc6, cvi, b = labels)
+unlist(apply(CIV6,1,which.min))
+mvc6a<-mvc6[[1]]
 
-plot(mvc2a)
-rect.hclust(mvc1a, k = 6, border = 2) 
-mvc2a@cluster
-mvc2a@clusinfo
+plot(mvc6a)
+rect.hclust(mvc6a, k = 6, border = 2) 
+mvc6a@cluster
+mvc6a@clusinfo
 
-results_mvc2a<-mvc2a@cluster
+results_mvc6a<-mvc6a@cluster
 
 
-table(results_logPrecip$cluster5_logPrecip,results_mvc1a)
-table(results_logPrecip$cluster6_logPrecip,results_mvc2a)
+mvc4 <- tsclust(series.mv, type = "hierarchical",
+                distance = "dtw2", k = 4L, trace = TRUE,
+                control = hierarchical_control(method = "all",
+                                               distmat = mvc5[[1L]]@distmat))
+CIV4<-sapply(mvc4, cvi, b = labels)
+unlist(apply(CIV4,1,which.min))
+mvc4a<-mvc4[[1]]
+results_mvc4a<-mvc4a@cluster
 
-results_mvc <- data.frame(Canton=names(results_mvc1a),cluster5_mvc=results_mvc1a,cluster6_mvc=results_mvc2a)
+mvc3 <- tsclust(series.mv, type = "hierarchical",
+                distance = "dtw2", k = 3L, trace = TRUE,
+                control = hierarchical_control(method = "all",
+                                               distmat = mvc5[[1L]]@distmat))
+CIV3<-sapply(mvc3, cvi, b = labels)
+unlist(apply(CIV3,1,which.min))
+mvc3a<-mvc3[[1]]
+results_mvc3a<-mvc3a@cluster
+
+results_mvc <- data.frame(Canton=names(results_mvc3a),cluster3_mvc=results_mvc3a,cluster4_mvc=results_mvc4a,cluster5_mvc=results_mvc5a,cluster6_mvc=results_mvc6a)
 
 
 save(results_logRR,results_logPrecip,results_mvc ,file="./Data/clustering.Rdata")
