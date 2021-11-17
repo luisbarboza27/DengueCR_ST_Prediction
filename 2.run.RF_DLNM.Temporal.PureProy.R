@@ -1,7 +1,8 @@
 library(tidyverse)
 library(timetk)
 library(lubridate)
-library(gamlss)
+library(ranger)
+#library(gamlss)
 library(zoo)
 library(boot)
 library(dlnm)
@@ -26,7 +27,7 @@ bases_test_2 <- list() # Bases de prueba por canton
 valores_p <- NULL
 AA <- NULL
 
-modGAM <- NULL
+modRF <- NULL
 predicciones_in <- NULL
 predicciones_out_1 <- NULL
 quantiles_out_1 <- NULL
@@ -57,14 +58,14 @@ for(i in 1:length(cantones$CCanton)){
                         lag=18)
   colnames(basis.P) <- paste0('P',1:dim(basis.P)[2])
   basis.Nino <- crossbasis(basecanton$Nino34SSTA_3,
-                        argvar = list(fun='lin'),
-                        arglag = list(fun='lin'),
-                        lag=18)
-  colnames(basis.Nino) <- paste0('N',1:dim(basis.Nino)[2])
-  basis.TNA <- crossbasis(basecanton$TNA_3,
                            argvar = list(fun='lin'),
                            arglag = list(fun='lin'),
                            lag=18)
+  colnames(basis.Nino) <- paste0('N',1:dim(basis.Nino)[2])
+  basis.TNA <- crossbasis(basecanton$TNA_3,
+                          argvar = list(fun='lin'),
+                          arglag = list(fun='lin'),
+                          lag=18)
   colnames(basis.TNA) <- paste0('T',1:dim(basis.TNA)[2])
   basis.LSD <- crossbasis(basecanton$LSD_3,
                           argvar = list(fun='lin'),
@@ -72,14 +73,14 @@ for(i in 1:length(cantones$CCanton)){
                           lag=18)
   colnames(basis.LSD) <- paste0('L',1:dim(basis.LSD)[2])
   basis.NDVI <- crossbasis(basecanton$NDVI_3,
-                          argvar = list(fun='lin'),
-                          arglag = list(fun='lin'),
-                          lag=18)
+                           argvar = list(fun='lin'),
+                           arglag = list(fun='lin'),
+                           lag=18)
   colnames(basis.NDVI) <- paste0('NV',1:dim(basis.NDVI)[2])
   basis.RR <- crossbasis(basecanton$RRl1,
-                          argvar = list(fun='lin'),
-                          arglag = list(fun='lin'),
-                          lag=11)
+                         argvar = list(fun='lin'),
+                         arglag = list(fun='lin'),
+                         lag=11)
   colnames(basis.RR) <- paste0('R',1:dim(basis.RR)[2])
   
   
@@ -92,31 +93,21 @@ for(i in 1:length(cantones$CCanton)){
               data.frame(basis.RR)) %>%
     drop_na()
   
-
+  
   base_ent <- basecanton %>% filter(Year<=2018) 
   
-   modelo_gamma <- gamlss(RR~R1+R2+
-                            P1+P2+
-                            N1+N2+
-                            T1+T2+
-                            L1+L2+
-                            NV1+NV2+Month,
-                          sigma.formula = ~1,
-                          nu.formula = ~1,
-                          data = base_ent,
-                          family = ZAGA(),
-                          control = gamlss.control(trace = F))
-  
-  #modelo_gamma <- gamlss(RR~R1+R2+R3+R4+R5+R6+
-  #                         P1+P2+
-  #                         N1+N2+
-  #                         T1+T2+
-  #                         Month,
-  #                       sigma.formula = ~1,
-  #                       nu.formula = ~1,
-  #                       data = base_ent,
-  #                       family = ZAGA(),
-  #                       control = gamlss.control(trace = F))
+  modelo_RF <- ranger(RR~R1+R2+
+                         P1+P2+
+                         N1+N2+
+                         T1+T2+
+                         L1+L2+
+                         NV1+NV2+Month,
+                         base_ent,
+                         seed = 1,
+                         num.trees = 500,
+                         quantreg = T)
+
+
   ##########
   # basecanton <- basecanton %>%
   #   mutate(RRl1 = lag(RR),Nino12SSTAl1=lag(Nino12SSTA,lags_ccf[i,1]),Nino3SSTAl1=lag(Nino3SSTA,lags_ccf[i,2]),Nino34SSTAl1=lag(Nino34SSTA,lags_ccf[i,3]),Nino4SSTAl1=lag(Nino4SSTA,lags_ccf[i,4]),
@@ -127,7 +118,7 @@ for(i in 1:length(cantones$CCanton)){
   #   dplyr::select(Year,Month,RR,RRl1,Nino12SSTAl1,Nino3SSTAl1,Precipl1,TNAl1)
   
   
-
+  
   #    drop_na(Nino12SSTAl1,Nino3SSTAl1,Nino34SSTAl1,Nino4SSTAl1,EVIl1,NDVIl1,
   #            NDWIl1,LSDl1,LSNl1,TNAl1,Precipl1)
   
@@ -144,11 +135,11 @@ for(i in 1:length(cantones$CCanton)){
   #                        control = gamlss.control(trace = F))
   
   
-  base_ent <- base_ent %>% 
-    mutate(res = resid(modelo_gamma),
-           fmu = fitted(modelo_gamma),
-           fsigma = fitted(modelo_gamma,what = 'sigma'),
-           fnu = fitted(modelo_gamma,what = 'nu'))
+  #base_ent <- base_ent %>% 
+  #  mutate(res = resid(modelo_gamma),
+  #         fmu = fitted(modelo_gamma),
+  #         fsigma = fitted(modelo_gamma,what = 'sigma'),
+  #         fnu = fitted(modelo_gamma,what = 'nu'))
   #modelo_normal <- gamlss(RR~Nino3SSTAl1+Precipl1+as.factor(Month),
   #                        data = base_ent)
   #modelo_IG <- gamlss(RR~RRl1+Nino3SSTAl1+Precipl1,
@@ -161,8 +152,9 @@ for(i in 1:length(cantones$CCanton)){
   bases_test_1[[i]] <- base_test_1
   bases_test_2[[i]] <- base_test_2
   
-  modGAM[[i]] <- modelo_gamma
-  predicciones_in[[i]] <- predict(modGAM[[i]],type = 'response',se.fit = T)
+  modRF[[i]] <- modelo_RF
+  predicciones_in[[i]] <- predict(modRF[[i]],base_ent,
+                                           type = 'response')$predictions
   predicciones_out_1[[i]] <- list()
   
   for(j in 1:12){
@@ -171,9 +163,7 @@ for(i in 1:length(cantones$CCanton)){
       base_proy$RRl1 <- RRtemp
     }
     
-    ppred <- predict(modGAM[[i]],newdata = base_proy,type = 'response')
-    ppred_sigma <- predict(modGAM[[i]],newdata = base_proy,
-                           type = 'response',what = 'sigma')
+    ppred <- predict(modRF[[i]],base_proy,type = 'response')$predictions
     RRtemp <- ppred
     predicciones_out_1[[i]][[j]] <- ppred
   }
@@ -203,15 +193,23 @@ for(i in 1:length(cantones$CCanton)){
   
   pred.function.NP <- function(data,i){
     d <- data[i,]
-    modelo_gamma_b <- update(modelo_gamma,data = d)
+    modelo_RF_b <- ranger(RR~R1+R2+
+                               P1+P2+
+                               N1+N2+
+                               T1+T2+
+                               L1+L2+
+                               NV1+NV2,
+                             d,
+                             seed = 1,
+                             num.trees = 500,
+                             quantreg = T)
     predicciones_out_b <- NULL
     for(j in 1:12){
       base_proy <- base_test_1[j,]
       if(j>1){
         base_proy$RRl1 <- RRtemp
       }
-      
-      ppred <- predict(modelo_gamma_b,newdata = base_proy,type = 'response',d=d)
+      ppred <- predict(modelo_RF_b,base_proy,type = 'response')$predictions
       RRtemp <- ppred
       predicciones_out_b[j] <- ppred
     }
@@ -239,6 +237,7 @@ base_grafico_lista <- function(indice){
     dplyr::select(Year,Month) %>% mutate(fecha=make_date(Year,Month,1))
   base_grafico <- predicciones_in[[indice]] %>% bind_cols(RR_obs) %>%
     mutate(fechas=fechas$fecha,Canton=nombres_cantones$Canton[indice])
+  colnames(base_grafico)[1] <- 'fit'
   return(base_grafico)
 }
 
@@ -281,16 +280,18 @@ grafico_out <- ggplot(data = base_grafico_out,mapping = aes(x = fechas,y = fit))
 metricas <- function(tabla){
   NRMSE <- mean((tabla$fit-tabla$RR)^2)/mean(tabla$RR)
   NIS_95 <- mean((tabla$up-tabla$low)+
-    (2/0.05)*(tabla$low-tabla$RR)*(tabla$RR<tabla$low)+
-    (2/0.05)*(tabla$RR-tabla$up)*(tabla$RR>tabla$up))/mean(tabla$RR)
+                  (2/0.05)*(tabla$low-tabla$RR)*(tabla$RR<tabla$low)+
+                  (2/0.05)*(tabla$RR-tabla$up)*(tabla$RR>tabla$up))/mean(tabla$RR)
   return(data.frame(NRMSE,NIS_95))
 }
 
 base_grafico_out_g <- base_grafico_out %>% group_by(Canton)
 
 metricas_tot <- base_grafico_out_g %>% group_modify(~metricas(.x))
-write_csv(metricas_tot,file = 'metricas_GAM.csv')
+write_csv(metricas_tot,file = 'metricas_RF.csv')
 #ggsave(filename = 'training.png',plot = grafico_in,scale = 2)
 #ggsave(filename = 'testing.png',plot = grafico_out,scale = 2)
 
-save.image('Resultados_GAM.RData')
+save.image('Resultados_RF.RData')
+
+
