@@ -128,7 +128,7 @@ for(j in 1:length(prediccion.out)){
     xlab("time") +
     ylab("y") +
     theme_bw() +
-    facet_wrap( ~series,scales="free")
+    facet_wrap( ~series,scales="free",nrow=5)
 
   file <- paste0("TSprediction/TSprediction_",i,".jpg")
 ggsave(figure, filename = file, height = 20, width = 20)
