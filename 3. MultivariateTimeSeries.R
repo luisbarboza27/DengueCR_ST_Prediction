@@ -44,8 +44,8 @@ for(i in 1:length(cantones$CCanton)){
   bases_ent[[i]] <- bases_ent_i
   bases_test[[i]] <- bases_test_i
   
-  bases_ent_i <- bases_ent_i %>% select(-fecha)
-  bases_test_i <- bases_test_i %>% select(-fecha) 
+  bases_ent_i <- bases_ent_i %>% dplyr::select(-fecha)
+  bases_test_i <- bases_test_i %>% dplyr::select(-fecha) 
   
   # plot.ts(bases_ent , main = "", xlab = "")
   # stats::acf(bases_ent,lag.max = 100)
@@ -70,7 +70,7 @@ for(i in 1:length(cantones$CCanton)){
 
   predicciones_in_i <- fitted(modvar)
   predicciones_out_i <- predict(modvar, n.ahead = 12, ci = 0.95)
-  #fanchart(predicciones_out)
+  #fanchart(predicciones_out_i)
   predicciones_out_i <- predicciones_out_i$fcst
   
   predicciones_in[[i]] <- predicciones_in_i
