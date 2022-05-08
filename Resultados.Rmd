@@ -3,10 +3,18 @@ title: "Resultados"
 output: html_notebook
 ---
 
+```{r}
+library(tidyverse)
+library(lubridate)
+library(sf)
+library(spdep)
+library(cowplot)
+```
+
 
 ```{r}
 load('Resultados_GAM.RData')
-metricas_tot_GAM <- metricas_tot %>% mutate(Model='GAM')
+metricas_tot_GAM <- metricas_tot %>% mutate(Model='GAMLSS')
 
 mejores_GAM <- sort(metricas_tot_GAM$NIS_95,index.return=T)$ix[1:3] 
 
@@ -98,7 +106,9 @@ base_grafico_out_RF<- map_dfr(indice,~base_grafico_lista_2(.))
 Histograma de las diferencias entre los NIS de ambos algoritmos y diagramas de caja:
 ```{r}
 caja_NIS <- ggplot(data = metricas_tot) +
-  geom_boxplot(mapping = aes(y=NIS_95,fill=Model))
+  geom_boxplot(mapping = aes(y=NIS_95,fill=Model))+
+  theme(axis.text.x = element_blank())+
+  theme_bw()
 
 caja_NRMSE <- ggplot(data = metricas_tot) +
   geom_boxplot(mapping = aes(y=NRMSE,fill=Model))
@@ -111,6 +121,9 @@ histograma_NIS <- ggplot(data = D_NIS)+
 show(caja_NIS)
 show(caja_NRMSE)
 show(histograma_NIS)
+
+#save_plot('caja_NIS.pdf',plot = caja_NIS)
+#caja_NIS 614X352
 ```
 
 Predicciones en mejores y peores GAM:
@@ -121,8 +134,10 @@ grafico_out_GAM <- ggplot(data = base_grafico_out_GAM,mapping = aes(x = fechas,y
   geom_ribbon(mapping = aes(ymin = low, ymax = up),fill=2,alpha=0.5) +
   theme_bw()+
   facet_wrap(facets = vars(factor(Canton,levels = nombres_GAM)),ncol = 3,scales = 'free')+
-  xlab('Dates')+ylab('Relative Risk')
-show(grafico_out_GAM)
+  xlab('Date')+ylab('Relative Risk')
+show(grafico_out_GAM)  #grafico_out_GAM 800X457 
+#save_plot(filename = 'grafico_out_GAM.pdf',plot = grafico_out_GAM,base_asp = 2.5)
+save_plot(filename = 'grafico_out_GAM.png',plot = grafico_out_GAM,base_asp = 2.5)
 ```
 
 Predicciones en mejores y peores RF:
@@ -133,13 +148,63 @@ grafico_out_RF <- ggplot(data = base_grafico_out_RF,mapping = aes(x = fechas,y =
   geom_ribbon(mapping = aes(ymin = low, ymax = up),fill=2,alpha=0.5) +
   theme_bw()+
   facet_wrap(facets = vars(factor(Canton,levels = nombres_RF)),ncol = 3,scales = 'free')+
-  xlab('Dates')+ylab('Relative Risk')
+  xlab('Date')+ylab('Relative Risk')
 show(grafico_out_RF)
+#save_plot(filename = 'grafico_out_RF.pdf',plot = grafico_out_RF,base_asp = 2.5)
 ```
 
 Mapas de Riesgo Relativo:
 
 Tres puntos en un año dado (2015):
+```{r}
+distritos_st <-st_read('Data/distritos_shape/Distritos_de_Costa_Rica.shp') %>%
+  filter(CODIGO!=60110) %>% mutate(CCanton = str_sub(CODIGO,1,3))
+cantones_st <- distritos_st %>% group_by(CCanton) %>%
+  summarise(geometry = st_union(geometry)) %>%
+  ungroup() %>% mutate(CCanton = as.numeric(CCanton))
+  
+datos_2015_1 <- datos_totales %>% filter(Year==2015,Month==3) %>%
+  select(CCanton,RR) %>% full_join(cantones_st,by = 'CCanton') %>%
+  st_as_sf() %>% mutate(Mes = '2015-3')
 
-Tres años distintos (2005,2010,2018) en un punto fijo (Julio):
+datos_2015_2 <- datos_totales %>% filter(Year==2015,Month==7) %>%
+  select(CCanton,RR) %>% full_join(cantones_st,by = 'CCanton') %>%
+  st_as_sf() %>% mutate(Mes = '2015-7')
+
+datos_2015_3 <- datos_totales %>% filter(Year==2015,Month==10) %>%
+  select(CCanton,RR) %>% full_join(cantones_st,by = 'CCanton') %>%
+  st_as_sf() %>% mutate(Mes = '2015-10')
+
+datos_J_1 <- datos_totales %>% filter(Year==2005,Month==7) %>%
+  select(CCanton,RR) %>% full_join(cantones_st,by = 'CCanton') %>%
+  st_as_sf() %>% mutate(Mes = '2005-7')
+
+datos_J_2 <- datos_totales %>% filter(Year==2010,Month==7) %>%
+  select(CCanton,RR) %>% full_join(cantones_st,by = 'CCanton') %>%
+  st_as_sf() %>% mutate(Mes = '2010-7')
+
+datos_J_3 <- datos_totales %>% filter(Year==2018,Month==7) %>%
+  select(CCanton,RR) %>% full_join(cantones_st,by = 'CCanton') %>%
+  st_as_sf() %>% mutate(Mes = '2018-7')
+
+
+datos_grafico <- bind_rows(datos_2015_1,datos_2015_2,datos_2015_3,
+                           datos_J_1,datos_J_2,datos_J_3)
+
+datos_grafico$Mes <- factor(datos_grafico$Mes,
+                            levels = c('2015-3','2015-7','2015-10',
+                                       '2005-7','2010-7','2018-7'))
+RR_grafico <- ggplot(data = datos_grafico,mapping = aes(fill=RR)) +
+  geom_sf()+
+  facet_wrap(vars(Mes),ncol = 3)+
+  theme_bw()+
+  scale_fill_gradient(low = 'yellow',high = 'red',na.value = 'white')+
+  theme(legend.title = element_blank(),axis.text = element_blank(),
+        axis.ticks = element_blank())
+RR_grafico
+#save_plot(filename = 'RR_maps.pdf',plot = RR_grafico)
+#save_plot(filename = 'RR_maps.png',plot = RR_grafico)
+#ggsave(filename = 'RR_maps.pdf',RR_grafico)
+```
+
 
